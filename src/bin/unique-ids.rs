@@ -1,4 +1,5 @@
 use std::io::{StdoutLock, Write};
+use std::sync::mpsc::Sender;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -22,7 +23,7 @@ struct UniqueNode {
 }
 
 impl Node<(), Payload> for UniqueNode {
-    fn from_init(_state: (), init: Init) -> Result<Self> where Self: Sized {
+    fn from_init(_state: (), init: Init, _tx: Sender<Event<Payload>> ) -> Result<Self> where Self: Sized {
         Ok(UniqueNode {
             node: init.node_id,
             id: 1,
@@ -31,9 +32,13 @@ impl Node<(), Payload> for UniqueNode {
 
     fn step(
         &mut self,
-        input: Message<Payload>,
+        input: Event<Payload>,
         output: &mut StdoutLock)
         -> Result<()> {
+        
+        let Event::Message(input) = input else {
+            panic!("got injected event when there's no event injection")
+        };
         let guid= format!("{}-{}", self.node, self.id);
         let mut reply = input.into_reply(Some(&mut self.id));
         match reply.body.payload {
@@ -51,5 +56,5 @@ impl Node<(), Payload> for UniqueNode {
 
 
 fn main() -> Result<()> {
-    main_loop::<_, UniqueNode, _>(())
+    main_loop::<_, UniqueNode, _, _>(())
 }

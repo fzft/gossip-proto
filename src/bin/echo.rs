@@ -18,15 +18,19 @@ struct EchoNode {
 }
 
 impl Node<(), Payload> for EchoNode {
-    fn from_init(_state: (), _init: Init) -> Result<Self> where Self: Sized {
+    fn from_init(_state: (), _init: Init, _tx: std::sync::mpsc::Sender<Event<Payload>>) -> Result<Self> where Self: Sized {
         Ok(EchoNode { id: 1 })
     }
 
     fn step(
         &mut self,
-        input: Message<Payload>,
+        input: Event<Payload>,
         output: &mut StdoutLock)
         -> Result<()> {
+        let Event::Message(input) = input else { 
+          panic!("got injected event when there's no event injection")  
+        };
+        
         let mut reply = input.into_reply(Some(&mut self.id));
         match reply.body.payload {
             Payload::Echo { echo } => {
@@ -45,5 +49,5 @@ impl Node<(), Payload> for EchoNode {
 
 fn main() -> Result<()> {
 
-    main_loop::<_, EchoNode, _>(())
+    main_loop::<_, EchoNode, _, _>(())
 }
